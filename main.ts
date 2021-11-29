@@ -1,31 +1,53 @@
 let pathxy: number[] = []
+let rooms: any[] = []
 let ANY = -1
 let RIGHT = 0
 let DOWN = 1
 let UP = 3
 let LEFT = 2
-let xmax = 32
-let ymax = 32
+let xmax = 31
+let ymax = 31
 
-function genExit(xmax: number, ymax: number) {
-    while (true) {
-        let w = randint(0, 3)
-        let ex = randint(1, xmax - 1)
-        let ey = randint(1, ymax - 1)
+function drawTile(x:number, y:number, tile:number) {
+    let t = sprites.dungeon.darkGroundCenter
+    let wall = false
 
-        if (w == DOWN && getPath(ex, ymax - 1) == 1) {
-            return { x: ex, y: ymax }
-        }
-        if (w == RIGHT && getPath(xmax - 1, ey) == 1) {
-            return { x: xmax, y: ey }
+    if (tile == 1) {
+        t = sprites.dungeon.darkGroundCenter
+        wall = false
+    } else if (tile == 2) {
+        t = sprites.dungeon.buttonTeal
+        // wall = true
+    } else if (tile == 0) {
+        t = sprites.dungeon.floorDark5
+        // wall = true
+    }
+
+    tiles.setTileAt(tiles.getTileLocation(x * 2, y * 2), t)
+    tiles.setWallAt(tiles.getTileLocation(x * 2, y * 2), wall)
+
+    tiles.setTileAt(tiles.getTileLocation(x * 2 + 1, y * 2), t)
+    tiles.setWallAt(tiles.getTileLocation(x * 2 + 1, y * 2), wall)
+
+    tiles.setTileAt(tiles.getTileLocation(x * 2, y * 2 + 1), t)
+    tiles.setWallAt(tiles.getTileLocation(x * 2, y * 2 + 1), wall)
+
+    tiles.setTileAt(tiles.getTileLocation(x * 2 + 1, y * 2 + 1), t)
+    tiles.setWallAt(tiles.getTileLocation(x * 2 + 1, y * 2 + 1), wall)
+}
+
+function drawMaze() {
+    for (let x = 0; x <= xmax; x++) {
+        for (let y = 0; y <= ymax; y++) { 
+            drawTile(x, y, getPath(x, y))
         }
     }
 }
 
 function getPath(x: number, y: number) {
-    if (pathxy[y * xmax + x] != 1 && pathxy[y * xmax + x] != 2)
+    if (pathxy[y * xmax + x] != 1 && pathxy[y * xmax + x] != 2) {
         return 0
-    else
+    } else
         return pathxy[y * xmax + x]
 }
 
@@ -48,9 +70,9 @@ function gotMoves(dir: number, x: number, y: number) {
 
 function checkSpace(x: number, y: number, xm: number, ym: number) {
     if (!(x + xm + 2 < xmax && x - 2 > 0 && y + ym + 2 < ymax && y - 2 > 0)) return false
-    for (let xd = 0; xd <= xm; xd++) {
-        for (let yd = 0; yd <= ym; yd++) {
-            if (getPath(x + xd, y + yd) == 1) {
+    for (let xd = 0; xd < xm; xd++) {
+        for (let yd = 0; yd < ym; yd++) {
+            if (getPath(x + xd, y + yd) != 0) {
                 return false
             }
         }
@@ -59,27 +81,20 @@ function checkSpace(x: number, y: number, xm: number, ym: number) {
 }
 
 function fillSpace(x: number, y: number, xmax: number, ymax: number, tile: number) {
-    for (let xd = 0; xd <= xmax; xd++) {
-        for (let yd = 0; yd <= ymax; yd++) {
+    for (let xd = 0; xd < xmax; xd++) {
+        for (let yd = 0; yd < ymax; yd++) {
             setPath(x + xd, y + yd, tile)
         }
     }
 }
 
-function buildRoom(dir: number, x: number, y: number, xsize: number, ysize: number) {
-    if ((dir == RIGHT || dir == ANY) && checkSpace(x - 2, y - 2, xsize + 2, ysize + 2)) {
-        fillSpace(x - 1, y - 1, xsize + 1, ysize + 1, 1)
-        fillSpace(x, y, xsize, ysize, 2)
-        return true
+function buildRoom(x: number, y: number, size: number) {
+    if (checkSpace(x, y, size, size)) {
+        fillSpace(x, y, size, size, 2)
+        fillSpace(x + 1, y + 1, size - 2, size - 2, 1)
+        return { status: true, room: { x, y, size } }
     }
-    // else if ((dir == DOWN || dir == ANY) && y + ysize < ymax && getPath(x, y + 2) != 1) {
-    //     return true
-    // } else if ((dir == LEFT || dir == ANY) && x - 2 > 0 && getPath(x - 2, y) != 1) {
-    //     return true
-    // } else if ((dir == UP || dir == ANY) && y - 2 > 0 && getPath(x, y - 2) != 1) {
-    //     return true
-    // }
-    return false
+    return { status: false, room: { x, y, size } }
 }
 
 function moveDir(dir: number, x: number, y: number) {
@@ -107,8 +122,6 @@ function moveDir(dir: number, x: number, y: number) {
     return { x: x, y: y }
 }
 
-
-
 function genMaze(dir: number, x: number, y: number, depth: number) {
     while (gotMoves(ANY, x, y) && depth - 1 != 0) {
         let loc = moveDir(dir, x, y)
@@ -122,30 +135,70 @@ function genMaze(dir: number, x: number, y: number, depth: number) {
 }
 
 function buildRandRoom() {
-    let x = randint(2, xmax - 2)
-    let y = randint(2, ymax - 2)
-    buildRoom(RIGHT, x, y, 6, 6)
+    let size = 5 + randint(1, 3) * 2
+    let x = randint(1, xmax - size - 1)
+    let y = randint(1, ymax - size - 1)
+
+    return buildRoom(x * 2, y * 2, size)
 }
 
-function drawMaze() {
-    for (let x = 0; x <= xmax; x++) {
-        for (let y = 0; y <= ymax; y++) {
-            if (getPath(x, y) == 1) {
-                tiles.setTileAt(tiles.getTileLocation(x, y), sprites.dungeon.darkGroundCenter)
-                tiles.setWallAt(tiles.getTileLocation(x, y), false)
-            } else if (getPath(x, y) == 2) {
-                tiles.setTileAt(tiles.getTileLocation(x, y), sprites.dungeon.buttonTeal)
-                tiles.setWallAt(tiles.getTileLocation(x, y), false)
-            } else {
-                tiles.setTileAt(tiles.getTileLocation(x, y), sprites.dungeon.floorDark5)
-                tiles.setWallAt(tiles.getTileLocation(x, y), false)
-            }
+function genRoomExit(room: any, firstRoom = false) {
+    while (true) {
+        let w = randint(0, 3)
+        let d = randint(1, room.size - 2)
+        if (w == UP && (getPath(room.x + d, room.y - 1) == 1 || firstRoom)) {
+            return { x: (room.x + d), y: room.y, dir: w }
+        } else if (w == LEFT && (getPath(room.x - 1, room.y + d) == 1 || firstRoom)) {
+            return { x: room.x, y: (room.y + d), dir: w }
+        } else if (w == DOWN && (getPath(room.x + d, room.y + room.size) == 1 || firstRoom)) {
+            return { x: (room.x + d), y: (room.y + room.size - 1), dir: w }
+        } else if (w == RIGHT && (getPath(room.x + room.size, room.y + d) == 1 || firstRoom)) {
+            return { x: (room.x + room.size - 1), y: (room.y + d), dir: w }
         }
     }
 }
 
+
+
+let c = 0
+let roomsNum = 6
+let t = 0
+
+while (c < roomsNum && t < 100) {
+    let result = buildRandRoom()
+    if (result.status) {
+        rooms.push(result.room)
+        c++
+        t=0
+    } else {
+        t++
+    }
+}
+
+let room = rooms[0]
+let e = genRoomExit(room, true)
+room.exit = e
+setPath(e.x, e.y, 1)
+if(e.dir == UP) genMaze(e.dir, e.x, e.y-1, 55)
+if (e.dir == DOWN) genMaze(e.dir, e.x, e.y + 1, 55)
+if (e.dir == RIGHT) genMaze(e.dir, e.x+1, e.y, 55)
+if (e.dir == LEFT) genMaze(e.dir, e.x-1, e.y, 55)
+
+c = 1
+while (c < rooms.length) {
+    let room = rooms[c]
+    let exit = genRoomExit(room)
+    room.exit = exit
+    setPath(exit.x, exit.y, 1)
+    c++
+}
+
 tiles.setTilemap(tilemap`level1`)
-let mySprite = sprites.create(img`
+drawMaze()
+// info.startCountdown(120)
+
+
+let knight = sprites.create(img`
     . . . . . f f f f . . . . .
     . . . f f f 2 2 f f f . . .
     . . f f f 2 2 2 2 f f f . .
@@ -161,21 +214,13 @@ let mySprite = sprites.create(img`
     f b b b b f 2 2 2 2 f d 4 .
     . f c c f 4 5 5 4 4 f 4 4 .
 `, SpriteKind.Player)
-controller.moveSprite(mySprite)
-mySprite.setPosition(12 * 2, 12 * 2)
+controller.moveSprite(knight)
+knight.setPosition((rooms[0].x + 2) * 32, (rooms[0].y + 2) * 32)
+scene.cameraFollowSprite(knight)
 
-// buildRandRoom()
-// buildRandRoom()
-// buildRandRoom()
-setPath(1, 1)
-genMaze(DOWN, 1, 1, 99)
-drawMaze()
-// info.startCountdown(120)
-
-scene.cameraFollowSprite(mySprite)
-let exit = genExit(xmax, ymax)
 let exitSprite = sprites.create(sprites.dungeon.doorClosedWest, SpriteKind.Food)
-exitSprite.setPosition(exit.x * 16 + 7, exit.y * 16 + 7)
+exitSprite.setPosition((rooms[rooms.length - 1].x + rooms[rooms.length - 1].size / 2) * 32, (rooms[rooms.length - 1].y + rooms[rooms.length - 1].size / 2) * 32)
+
 
 sprites.onOverlap(SpriteKind.Player, SpriteKind.Food, function (sprite, otherSprite) {
     game.over(true, effects.confetti)
